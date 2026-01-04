@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #1a472a; /* Christmas green */
+  color: #fff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow-x: hidden;
+}
+
+@keyframes snow {
+  0% { transform: translateY(-10px) translateX(0); }
+  50% { transform: translateY(50vh) translateX(20px); }
+  100% { transform: translateY(100vh) translateX(0); }
+}
+
+.snowflake {
+  position: fixed;
+  top: -10px;
+  color: white;
+  user-select: none;
+  z-index: 1000;
+  pointer-events: none;
+}
