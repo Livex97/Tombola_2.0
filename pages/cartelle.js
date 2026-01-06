@@ -89,7 +89,7 @@ export default function Cartelle() {
 
   useEffect(() => {
     if (!name) return;
-    socket = io();
+    socket = io({ transports: ['websocket'] });
     
     socket.on('init-state', (state) => {
       setDrawnNumbers(state.drawnNumbers);

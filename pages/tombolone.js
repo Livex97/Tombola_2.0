@@ -104,7 +104,7 @@ export default function Tombolone() {
   };
 
   const socketInitializer = async () => {
-    socket = io();
+    socket = io({ transports: ['websocket'] });
     socket.emit('take-tombolone');
 
     socket.on('init-state', (state) => {

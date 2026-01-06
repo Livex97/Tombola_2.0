@@ -14,7 +14,7 @@ export default function Home() {
   const [gameStarted, setGameStarted] = useState(false);
 
   useEffect(() => {
-    socket = io();
+    socket = io({ transports: ['websocket'] });
     socket.on('init-state', (state) => {
       setTomboloneOccupied(state.tomboloneOccupied);
       setGameStarted(state.gameStarted);

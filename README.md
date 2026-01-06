@@ -66,7 +66,7 @@ Tombola 2.0 è una web application moderna e reattiva per il gioco della Tombola
 
 ## 🍓 Deployment su Raspberry Pi
 
-Il progetto include ottimizzazioni per **Raspberry Pi Zero W**. Per maggiori dettagli sulla configurazione di Node.js su architettura ARM e sulla gestione delle risorse limitate, consultare il file [rpi_zero_w.md](./rpi_zero_w.md).
+Il progetto include ottimizzazioni per **Raspberry Pi Zero W**. Per maggiori dettagli sulla configurazione di Node.js su architettura ARM e sulla gestione delle risorse limitate, consultare il file [Conversione embedded-style.md](./Conversione embedded-style.md).
 
 ## 📄 Licenza
 
