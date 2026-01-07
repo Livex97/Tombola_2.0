@@ -12,8 +12,18 @@ export default function Home() {
   const [numCartelle, setNumCartelle] = useState(1);
   const [tomboloneOccupied, setTomboloneOccupied] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
+  const [canResume, setCanResume] = useState(false);
+  const [savedRole, setSavedRole] = useState(null);
 
   useEffect(() => {
+    const role = localStorage.getItem('tombola_role');
+    const savedName = localStorage.getItem('tombola_name');
+    if (role) {
+      setCanResume(true);
+      setSavedRole(role);
+      if (savedName) setName(savedName);
+    }
+
     socket = io({ transports: ['websocket'] });
     socket.on('init-state', (state) => {
       setTomboloneOccupied(state.tomboloneOccupied);
@@ -27,11 +37,25 @@ export default function Home() {
     });
     socket.on('game-reset', () => {
       setGameStarted(false);
+      setCanResume(false);
+      setSavedRole(null);
+      localStorage.removeItem('tombola_role');
+      localStorage.removeItem('tombola_name');
+      localStorage.removeItem('tombola_cards');
     });
     return () => socket.disconnect();
   }, []);
 
   const handleStart = () => {
+    if (canResume) {
+      if (savedRole === 'tombolone') {
+        router.push('/tombolone');
+      } else {
+        router.push('/cartelle');
+      }
+      return;
+    }
+
     if (mode === 'tombolone') {
       router.push('/tombolone');
     } else if (mode === 'cartelle') {
@@ -126,14 +150,19 @@ export default function Home() {
 
         <button
           onClick={handleStart}
-          disabled={!mode || (mode === 'cartelle' && !name) || gameStarted}
+          disabled={!canResume && (!mode || (mode === 'cartelle' && !name) || gameStarted)}
           className={`w-full p-5 rounded-2xl font-black text-2xl transition-all flex items-center justify-center gap-3 ${
-            !gameStarted && mode && (mode !== 'cartelle' || name)
+            canResume || (!gameStarted && mode && (mode !== 'cartelle' || name))
               ? 'bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white shadow-[0_10px_20px_rgba(34,197,94,0.3)] cursor-pointer active:scale-95' 
               : 'bg-gray-700 text-gray-400 cursor-not-allowed'
           }`}
         >
-          {gameStarted ? (
+          {canResume ? (
+            <>
+              <Play className="w-6 h-6 fill-current" />
+              RIPRENDI PARTITA
+            </>
+          ) : gameStarted ? (
             <>
               <Lock className="w-6 h-6" />
               GARA INIZIATA

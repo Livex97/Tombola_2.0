@@ -64,6 +64,11 @@ Tombola 2.0 è una web application moderna e reattiva per il gioco della Tombola
 2. **Giocatori**: Accedono alla sezione "Cartelle", scelgono il numero di cartelle e inseriscono il proprio nome.
 3. **Sincronizzazione**: Quando l'host estrae un numero, questo viene evidenziato automaticamente sulle cartelle di tutti i giocatori connessi.
 
+## ToDo List miglioramenti:
+- Aggiungere pulsante per mutare i suoni legati alle vincite su tombolone e cartelle.
+- Aggiungere nella pagina cartelle un tasto per passare dalla modalità automatica o manuale per smarcare le caselle uscite.
+- Aggiungere un colore diverso ai numeri che hanno scaturito il raggiungimento dell'obbiettivo/vincita attuale.
+
 ## 🍓 Deployment su Raspberry Pi
 
 Il progetto include ottimizzazioni per **Raspberry Pi Zero W**. Per maggiori dettagli sulla configurazione di Node.js su architettura ARM e sulla gestione delle risorse limitate, consultare il file [Conversione embedded-style.md](./Conversione embedded-style.md).

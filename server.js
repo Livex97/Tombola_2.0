@@ -40,11 +40,21 @@ app.prepare().then(() => {
     });
 
     socket.on('join-as-player', ({ name, numCards }) => {
-      if (gameState.gameStarted) return;
-      gameState.players.push({ id: socket.id, name, numCards });
+      const existingPlayerIndex = gameState.players.findIndex(p => p.name === name);
+      
+      if (existingPlayerIndex !== -1) {
+        // Riconnessione: aggiorna il socket ID
+        gameState.players[existingPlayerIndex].id = socket.id;
+        if (numCards) gameState.players[existingPlayerIndex].numCards = numCards;
+      } else {
+        // Nuovo giocatore: permetti solo se il gioco non è iniziato
+        if (gameState.gameStarted) return;
+        gameState.players.push({ id: socket.id, name, numCards });
+      }
+
       io.emit('update-stats', {
         totalPlayers: gameState.players.length,
-        totalCards: gameState.players.reduce((acc, p) => acc + parseInt(p.numCards), 0)
+        totalCards: gameState.players.reduce((acc, p) => acc + (parseInt(p.numCards) || 0), 0)
       });
     });
 
@@ -72,6 +82,7 @@ app.prepare().then(() => {
       gameState.drawnNumbers = [];
       gameState.claimedGoals = [];
       gameState.gameStarted = false;
+      gameState.players = [];
       io.emit('game-reset');
     });
 
@@ -80,7 +91,8 @@ app.prepare().then(() => {
         gameState.tomboloneId = null;
         io.emit('tombolone-status', { occupied: false });
       }
-      gameState.players = gameState.players.filter(p => p.id !== socket.id);
+      // Non rimuoviamo i giocatori per permettere la riconnessione
+      // gameState.players = gameState.players.filter(p => p.id !== socket.id);
       io.emit('update-stats', {
         totalPlayers: gameState.players.length,
         totalCards: gameState.players.reduce((acc, p) => acc + (parseInt(p.numCards) || 0), 0)

@@ -106,6 +106,7 @@ export default function Tombolone() {
   const socketInitializer = async () => {
     socket = io({ transports: ['websocket'] });
     socket.emit('take-tombolone');
+    localStorage.setItem('tombola_role', 'tombolone');
 
     socket.on('init-state', (state) => {
       setDrawnNumbers(state.drawnNumbers);
@@ -134,6 +135,9 @@ export default function Tombolone() {
       setDrawnNumbers([]);
       setLastDrawn(null);
       setClaimedGoals([]);
+      localStorage.removeItem('tombola_role');
+      localStorage.removeItem('tombola_name');
+      localStorage.removeItem('tombola_cards');
     });
   };
 

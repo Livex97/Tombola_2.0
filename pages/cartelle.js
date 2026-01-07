@@ -68,7 +68,13 @@ export default function Cartelle() {
   }, [drawnNumbers, handleAutoClaim]);
 
   useEffect(() => {
-    if (num) {
+    // Carica cards dal localStorage se presenti
+    const savedCards = localStorage.getItem('tombola_cards');
+    const savedName = localStorage.getItem('tombola_name');
+    
+    if (savedCards && (!name || name === savedName)) {
+      setCards(JSON.parse(savedCards));
+    } else if (num) {
       const count = parseInt(num) || 1;
       const usedIds = new Set();
       const newCards = [];
@@ -84,17 +90,24 @@ export default function Cartelle() {
         });
       }
       setCards(newCards);
+      localStorage.setItem('tombola_cards', JSON.stringify(newCards));
+      localStorage.setItem('tombola_name', name);
+      localStorage.setItem('tombola_role', 'player');
     }
-  }, [num]);
+  }, [num, name]);
 
   useEffect(() => {
-    if (!name) return;
     socket = io({ transports: ['websocket'] });
+    
+    const currentPlayerName = name || localStorage.getItem('tombola_name');
+    const currentPlayerNum = num || (JSON.parse(localStorage.getItem('tombola_cards') || '[]')).length;
+
+    if (!currentPlayerName) return;
     
     socket.on('init-state', (state) => {
       setDrawnNumbers(state.drawnNumbers);
       setClaimedGoals(state.claimedGoals.map(g => g.goal));
-      socket.emit('join-as-player', { name, numCards: num });
+      socket.emit('join-as-player', { name: currentPlayerName, numCards: currentPlayerNum });
     });
 
     socket.on('number-drawn', (num) => {
@@ -109,6 +122,9 @@ export default function Cartelle() {
     socket.on('game-reset', () => {
       setDrawnNumbers([]);
       setClaimedGoals([]);
+      localStorage.removeItem('tombola_cards');
+      localStorage.removeItem('tombola_name');
+      localStorage.removeItem('tombola_role');
     });
 
     return () => socket.disconnect();
