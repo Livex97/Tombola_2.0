@@ -158,6 +158,9 @@ export default function Tombolone() {
   const resetGame = () => {
     if (confirm('Sei sicuro di voler resettare il gioco per tutti?')) {
       socket.emit('reset-game');
+      localStorage.removeItem('tombola_role');
+      localStorage.removeItem('tombola_name');
+      localStorage.removeItem('tombola_cards');
     }
   };
 
@@ -246,6 +249,9 @@ export default function Tombolone() {
          </button>
          <button onClick={() => {
            if (confirm('Sei sicuro di voler resettare la partita e tornare alla home?')) {
+             localStorage.removeItem('tombola_role');
+             localStorage.removeItem('tombola_name');
+             localStorage.removeItem('tombola_cards');
              socket.emit('reset-game');
              router.push('/');
            }

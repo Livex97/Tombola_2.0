@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { User, Layout, CreditCard, Play, Lock, Settings } from 'lucide-react';
 import io from 'socket.io-client';
+import ResumeGameModal from '../components/ResumeGameModal';
 
 let socket;
 
@@ -14,6 +15,7 @@ export default function Home() {
   const [gameStarted, setGameStarted] = useState(false);
   const [canResume, setCanResume] = useState(false);
   const [savedRole, setSavedRole] = useState(null);
+  const [showResumeModal, setShowResumeModal] = useState(false);
 
   useEffect(() => {
     const role = localStorage.getItem('tombola_role');
@@ -43,6 +45,15 @@ export default function Home() {
       localStorage.removeItem('tombola_name');
       localStorage.removeItem('tombola_cards');
     });
+
+    socket.on('tombolone-abandoned', () => {
+      setGameStarted(false);
+      setCanResume(false);
+      setSavedRole(null);
+      localStorage.removeItem('tombola_role');
+      localStorage.removeItem('tombola_name');
+      localStorage.removeItem('tombola_cards');
+    });
     return () => socket.disconnect();
   }, []);
 
@@ -61,6 +72,31 @@ export default function Home() {
     } else if (mode === 'cartelle') {
       if (!name.trim()) return alert('Inserisci il tuo nome!');
       router.push(`/cartelle?num=${numCartelle}&name=${encodeURIComponent(name)}`);
+    }
+  };
+
+  const handleResume = () => {
+    setShowResumeModal(true);
+  };
+
+  const handleAbandon = () => {
+    localStorage.removeItem('tombola_role');
+    localStorage.removeItem('tombola_name');
+    localStorage.removeItem('tombola_cards');
+    setCanResume(false);
+    setSavedRole(null);
+    setShowResumeModal(false);
+    
+    if (savedRole === 'tombolone') {
+      socket.emit('tombolone-abandoned');
+    }
+  };
+
+  const handleContinue = () => {
+    if (savedRole === 'tombolone') {
+      router.push('/tombolone');
+    } else {
+      router.push('/cartelle');
     }
   };
 
@@ -102,30 +138,44 @@ export default function Home() {
 
         <div className="flex gap-4 mb-8">
           <button
-            onClick={() => !tomboloneOccupied && setMode('tombolone')}
-            disabled={tomboloneOccupied}
+            onClick={() => {
+              if (savedRole === 'tombolone') {
+                handleResume();
+              } else if (!tomboloneOccupied) {
+                setMode('tombolone');
+              }
+            }}
+            disabled={tomboloneOccupied && savedRole !== 'tombolone'}
             className={`flex-1 p-6 rounded-2xl font-bold transition-all flex flex-col items-center gap-3 border-2 relative ${
-              tomboloneOccupied ? 'opacity-50 cursor-not-allowed bg-gray-800' :
-              mode === 'tombolone' 
-                ? 'bg-yellow-400 text-red-900 border-yellow-300 scale-105 shadow-xl' 
+              tomboloneOccupied && savedRole !== 'tombolone' ? 'opacity-50 cursor-not-allowed bg-gray-800' :
+              mode === 'tombolone'
+                ? 'bg-yellow-400 text-red-900 border-yellow-300 scale-105 shadow-xl'
                 : 'bg-white bg-opacity-10 text-white border-transparent hover:bg-opacity-20'
             }`}
           >
-            {tomboloneOccupied ? <Lock className="w-8 h-8 text-red-500" /> : <Layout className={`w-8 h-8 ${mode === 'tombolone' ? 'text-red-900' : 'text-yellow-400'}`} />}
+            {tomboloneOccupied && savedRole !== 'tombolone' ? <Lock className="w-8 h-8 text-red-500" /> : <Layout className={`w-8 h-8 ${mode === 'tombolone' ? 'text-red-900' : 'text-yellow-400'}`} />}
             <span>Tombolone</span>
-            {tomboloneOccupied && <span className="text-[10px] uppercase text-red-400">Già in uso</span>}
+            {tomboloneOccupied && savedRole !== 'tombolone' && <span className="text-[10px] uppercase text-red-400">Già in uso</span>}
+            {savedRole === 'tombolone' && <span className="text-[10px] uppercase text-yellow-400">Riprendere partita</span>}
           </button>
           
           <button
-            onClick={() => setMode('cartelle')}
+            onClick={() => {
+              if (savedRole === 'player') {
+                handleResume();
+              } else {
+                setMode('cartelle');
+              }
+            }}
             className={`flex-1 p-6 rounded-2xl font-bold transition-all flex flex-col items-center gap-3 border-2 ${
-              mode === 'cartelle' 
-                ? 'bg-yellow-400 text-red-900 border-yellow-300 scale-105 shadow-xl' 
+              mode === 'cartelle'
+                ? 'bg-yellow-400 text-red-900 border-yellow-300 scale-105 shadow-xl'
                 : 'bg-white bg-opacity-10 text-white border-transparent hover:bg-opacity-20'
             }`}
           >
             <CreditCard className={`w-8 h-8 ${mode === 'cartelle' ? 'text-red-900' : 'text-yellow-400'}`} />
             Cartelle
+            {savedRole === 'player' && <span className="text-[10px] uppercase text-yellow-400">Riprendere partita</span>}
           </button>
         </div>
 
@@ -153,7 +203,7 @@ export default function Home() {
           disabled={!canResume && (!mode || (mode === 'cartelle' && !name) || gameStarted)}
           className={`w-full p-5 rounded-2xl font-black text-2xl transition-all flex items-center justify-center gap-3 ${
             canResume || (!gameStarted && mode && (mode !== 'cartelle' || name))
-              ? 'bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white shadow-[0_10px_20px_rgba(34,197,94,0.3)] cursor-pointer active:scale-95' 
+              ? 'bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white shadow-[0_10px_20px_rgba(34,197,94,0.3)] cursor-pointer active:scale-95'
               : 'bg-gray-700 text-gray-400 cursor-not-allowed'
           }`}
         >
@@ -174,6 +224,13 @@ export default function Home() {
             </>
           )}
         </button>
+        
+        <ResumeGameModal
+          isOpen={showResumeModal}
+          onClose={() => setShowResumeModal(false)}
+          onResume={handleContinue}
+          onAbandon={handleAbandon}
+        />
       </div>
     </div>
   );

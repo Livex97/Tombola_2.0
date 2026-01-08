@@ -58,6 +58,15 @@ app.prepare().then(() => {
       });
     });
 
+    socket.on('player-left', ({ name }) => {
+      gameState.players = gameState.players.filter(p => p.name !== name);
+      io.emit('update-stats', {
+        totalPlayers: gameState.players.length,
+        totalCards: gameState.players.reduce((acc, p) => acc + (parseInt(p.numCards) || 0), 0)
+      });
+      io.emit('player-left', { name });
+    });
+
     socket.on('draw-number', (number) => {
       if (gameState.drawnNumbers.length === 0) {
         gameState.gameStarted = true;
@@ -84,6 +93,20 @@ app.prepare().then(() => {
       gameState.gameStarted = false;
       gameState.players = [];
       io.emit('game-reset');
+    });
+
+    socket.on('tombolone-abandoned', () => {
+      gameState.drawnNumbers = [];
+      gameState.claimedGoals = [];
+      gameState.gameStarted = false;
+      gameState.players = [];
+      gameState.tomboloneId = null;
+      io.emit('tombolone-abandoned');
+      io.emit('tombolone-status', { occupied: false });
+      io.emit('update-stats', {
+        totalPlayers: 0,
+        totalCards: 0
+      });
     });
 
     socket.on('disconnect', () => {

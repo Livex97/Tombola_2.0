@@ -4,6 +4,7 @@ import io from 'socket.io-client';
 import { generateCard } from '../utils/tombola';
 import { Home, Trophy, Star } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import GameAbandonedModal from '../components/GameAbandonedModal';
 
 let socket;
 
@@ -14,10 +15,35 @@ export default function Cartelle() {
   const [drawnNumbers, setDrawnNumbers] = useState([]);
   const [claimedGoals, setClaimedGoals] = useState([]);
   const [announcement, setAnnouncement] = useState(null);
+  const [showAbandonedModal, setShowAbandonedModal] = useState(false);
   
   const goalOrder = ['ambo', 'terna', 'quaterna', 'cinquina', 'tombola'];
 
+  const playWinSound = (type) => {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const frequencies = {
+      ambo: [440, 554], terna: [440, 554, 659], quaterna: [523, 659, 783, 1046],
+      cinquina: [523, 659, 783, 1046, 1318], tombola: [523, 659, 783, 1046, 1318, 1567]
+    };
+    const freqs = frequencies[type] || [440];
+    const now = ctx.currentTime;
+    freqs.forEach((f, i) => {
+      osc.frequency.setValueAtTime(f, now + i * 0.1);
+    });
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1);
+    osc.start(now);
+    osc.stop(now + 1);
+  };
+
   const triggerCelebration = (goal, winner) => {
+    playWinSound(goal);
     setAnnouncement({ goal, winner });
     setTimeout(() => setAnnouncement(null), 5000);
     confetti({
@@ -67,6 +93,8 @@ export default function Cartelle() {
     handleAutoClaim();
   }, [drawnNumbers, handleAutoClaim]);
 
+  const [playerName, setPlayerName] = useState(name || '');
+
   useEffect(() => {
     // Carica cards dal localStorage se presenti
     const savedCards = localStorage.getItem('tombola_cards');
@@ -74,6 +102,9 @@ export default function Cartelle() {
     
     if (savedCards && (!name || name === savedName)) {
       setCards(JSON.parse(savedCards));
+      if (savedName) {
+        setPlayerName(savedName);
+      }
     } else if (num) {
       const count = parseInt(num) || 1;
       const usedIds = new Set();
@@ -93,6 +124,7 @@ export default function Cartelle() {
       localStorage.setItem('tombola_cards', JSON.stringify(newCards));
       localStorage.setItem('tombola_name', name);
       localStorage.setItem('tombola_role', 'player');
+      setPlayerName(name);
     }
   }, [num, name]);
 
@@ -127,6 +159,19 @@ export default function Cartelle() {
       localStorage.removeItem('tombola_role');
     });
 
+    socket.on('tombolone-abandoned', () => {
+      setShowAbandonedModal(true);
+      localStorage.removeItem('tombola_cards');
+      localStorage.removeItem('tombola_name');
+      localStorage.removeItem('tombola_role');
+    });
+
+    socket.on('player-left', ({ name }) => {
+      if (name === playerName) {
+        router.push('/');
+      }
+    });
+
     return () => socket.disconnect();
   }, [name, num]);
 
@@ -147,7 +192,7 @@ export default function Cartelle() {
         <div className="flex flex-col">
           <div className="flex items-center gap-3">
             <Star className="text-yellow-400 fill-current w-6 h-6 animate-pulse" />
-            <h1 className="text-2xl md:text-4xl font-black text-yellow-400 italic tracking-tighter uppercase">Gara di {name}</h1>
+            <h1 className="text-2xl md:text-4xl font-black text-yellow-400 italic tracking-tighter uppercase">Gara di {playerName}</h1>
           </div>
         </div>
         <button onClick={() => router.push('/')} className="bg-white bg-opacity-10 hover:bg-opacity-20 text-white p-3 rounded-2xl transition-all active:scale-95">
@@ -224,6 +269,10 @@ export default function Cartelle() {
          </div>
         </div>
       </div>
+      <GameAbandonedModal
+        isOpen={showAbandonedModal}
+        onClose={() => setShowAbandonedModal(false)}
+      />
     </div>
   );
 }
