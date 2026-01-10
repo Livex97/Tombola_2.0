@@ -1,0 +1,14 @@
+#!/bin/bash
+set -e
+
+echo "Stop del servizio Tombola..."
+systemctl stop tombola.service || true
+systemctl disable tombola.service || true
+echo "Eliminazione dei file di configurazione..."
+rm -f /etc/systemd/system/tombola.service
+systemctl daemon-reload
+
+if [ "$1" = "purge" ]; then
+    echo "Rimozione completa di file e dipendenze residue..."
+    rm -rf /usr/local/tombola
+fi
