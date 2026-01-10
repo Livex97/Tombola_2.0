@@ -67,7 +67,7 @@ Tombola 2.0 è una web application moderna e reattiva per il gioco della Tombola
 ## ToDo List miglioramenti:
 - Aggiungere pulsante per mutare i suoni legati alle vincite su tombolone e cartelle.
 - Aggiungere nella pagina cartelle un tasto per passare dalla modalità automatica o manuale per smarcare le caselle uscite.
-- Aggiungere un colore diverso ai numeri che hanno scaturito il raggiungimento dell'obbiettivo/vincita attuale.
+- Aggiungere un colore diverso ai numeri che hanno scaturito il raggiungimento dell'obbiettivo/vincita attuale in entrambe le pagine.
 
 ## 🍓 Deployment su Raspberry Pi
 

@@ -76,14 +76,21 @@ app.prepare().then(() => {
       io.emit('number-drawn', number);
     });
 
-    socket.on('claim-goal', ({ goal, name }) => {
+    socket.on('claim-goal', ({ goal, name, numbers, cardId, isTombolone }) => {
       const goalNames = ['ambo', 'terna', 'quaterna', 'cinquina', 'tombola'];
       const nextGoal = goalNames[gameState.claimedGoals.length];
       
       if (goal === nextGoal) {
-        const winData = { goal, winner: name };
+        const winData = { 
+          goal, 
+          winner: name, 
+          numbers: numbers || [],
+          cardId,
+          isTombolone: !!isTombolone
+        };
         gameState.claimedGoals.push(winData);
         io.emit('goal-claimed', winData);
+        //console.log('Vincitore è Tombolone: ' + isTombolone + ' Nome vincitore:' + name + 'Card ID vincente:' + cardId);
       }
     });
 

@@ -4,6 +4,7 @@ import io from 'socket.io-client';
 import { getSmorfia } from '../utils/smorfia';
 import {Home, RotateCcw, Radio, Trophy, Users, CreditCard as CardIcon } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import MuteButton from '../components/MuteButton';
 
 let socket;
 
@@ -14,6 +15,8 @@ export default function Tombolone() {
   const [claimedGoals, setClaimedGoals] = useState([]);
   const [stats, setStats] = useState({ totalPlayers: 0, totalCards: 0 });
   const [announcement, setAnnouncement] = useState(null);
+  const [winningNumbers, setWinningNumbers] = useState([]);
+  const [winningCardId, setWinningCardId] = useState(null);
 
   const goalOrder = ['ambo', 'terna', 'quaterna', 'cinquina', 'tombola'];
 
@@ -41,26 +44,57 @@ export default function Tombolone() {
 
     const currentTargetGoal = goalOrder[nextGoalIndex];
     let goalReachedByAnyCard = false;
+    let winNums = [];
+    let winCardId = null;
 
     for (let i = 0; i < 6; i++) {
+      const cardId = i + 1;
       const startNum = i * 15 + 1;
       const cartellaNums = Array.from({ length: 15 }, (_, j) => startNum + j);
-      const card = {
-        rows: [
-          cartellaNums.slice(0, 5),
-          cartellaNums.slice(5, 10),
-          cartellaNums.slice(10, 15)
-        ]
+      const rows = [
+        cartellaNums.slice(0, 5),
+        cartellaNums.slice(5, 10),
+        cartellaNums.slice(10, 15)
+      ];
+      
+      let cardResults = [];
+      rows.forEach(row => {
+        const matchedInRow = row.filter(n => n && drawnNumbers.includes(n));
+        cardResults.push(matchedInRow);
+      });
+
+      const maxInARow = Math.max(...cardResults.map(r => r.length));
+      const totalMatched = cardResults.flat().length;
+
+      const results = {
+        ambo: maxInARow >= 2,
+        terna: maxInARow >= 3,
+        quaterna: maxInARow >= 4,
+        cinquina: maxInARow >= 5,
+        tombola: totalMatched === 15
       };
-      const results = checkGoals(card);
+
       if (results[currentTargetGoal]) {
         goalReachedByAnyCard = true;
+        winCardId = cardId;
+        if (currentTargetGoal === 'tombola') {
+          winNums = cardResults.flat();
+        } else {
+          const winningRow = cardResults.find(r => r.length >= (goalOrder.indexOf(currentTargetGoal) + 2));
+          winNums = winningRow || [];
+        }
         break;
       }
     }
 
     if (goalReachedByAnyCard) {
-      socket.emit('claim-goal', { goal: currentTargetGoal, name: 'Tombolone' });
+      socket.emit('claim-goal', { 
+        goal: currentTargetGoal, 
+        name: 'Tombolone', 
+        numbers: winNums,
+        cardId: winCardId,
+        isTombolone: true
+      });
     }
   }, [drawnNumbers, claimedGoals]);
 
@@ -69,6 +103,9 @@ export default function Tombolone() {
   }, [drawnNumbers, handleAutoClaim]);
 
   const playWinSound = (type) => {
+    const isMuted = localStorage.getItem('tombola_muted') === 'true';
+    if (isMuted) return;
+
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
     const ctx = new AudioContext();
@@ -91,9 +128,11 @@ export default function Tombolone() {
     osc.stop(now + 1);
   };
 
-  const triggerCelebration = (goalType, winner) => {
+  const triggerCelebration = (goalType, winner, winNums, cardId) => {
     playWinSound(goalType);
     setAnnouncement({ goal: goalType, winner });
+    setWinningNumbers(winNums || []);
+    setWinningCardId(cardId);
     setTimeout(() => setAnnouncement(null), 5000);
     confetti({
       particleCount: 200,
@@ -111,6 +150,13 @@ export default function Tombolone() {
     socket.on('init-state', (state) => {
       setDrawnNumbers(state.drawnNumbers);
       setClaimedGoals(state.claimedGoals.map(g => g.goal));
+      if (state.claimedGoals.length > 0) {
+        const lastGoal = state.claimedGoals[state.claimedGoals.length - 1];
+        if (lastGoal.isTombolone) {
+          setWinningNumbers(lastGoal.numbers || []);
+          setWinningCardId(lastGoal.cardId);
+        }
+      }
       setStats({
         totalPlayers: state.players.length,
         totalCards: state.players.reduce((acc, p) => acc + (parseInt(p.numCards) || 0), 0)
@@ -128,13 +174,19 @@ export default function Tombolone() {
 
     socket.on('goal-claimed', (winData) => {
       setClaimedGoals(prev => [...prev, winData.goal]);
-      triggerCelebration(winData.goal, winData.winner);
+      if (winData.isTombolone) {
+        triggerCelebration(winData.goal, winData.winner, winData.numbers, winData.cardId);
+      } else {
+        triggerCelebration(winData.goal, winData.winner, [], null);
+      }
     });
 
     socket.on('game-reset', () => {
       setDrawnNumbers([]);
       setLastDrawn(null);
       setClaimedGoals([]);
+      setWinningNumbers([]);
+      setWinningCardId(null);
       localStorage.removeItem('tombola_role');
       localStorage.removeItem('tombola_name');
       localStorage.removeItem('tombola_cards');
@@ -193,7 +245,9 @@ export default function Tombolone() {
                     <div
                       key={num}
                       className={`aspect-square flex items-center justify-center rounded-2xl border-2 text-2xl font-black transition-all duration-500 ${drawnNumbers.includes(num)
-                          ? 'bg-yellow-400 text-red-900 border-yellow-200 scale-105 shadow-[0_0_15px_rgba(250,204,21,0.5)] rotate-2'
+                          ? (winningCardId === cartella.id && winningNumbers.includes(num))
+                            ? 'bg-green-500 text-white border-green-200 scale-110 shadow-[0_0_20px_rgba(34,197,94,0.6)] rotate-3'
+                            : 'bg-yellow-400 text-red-900 border-yellow-200 scale-105 shadow-[0_0_15px_rgba(250,204,21,0.5)] rotate-2'
                           : 'bg-white bg-opacity-5 text-white border-white border-opacity-10'
                         }`}
                     >
@@ -240,6 +294,7 @@ export default function Tombolone() {
          <div className="bg-red-600 bg-opacity-30 p-2 md:px-4 md:py-2 rounded-xl md:rounded-2xl border border-red-400 border-opacity-30 flex items-center gap-1 md:gap-2 md:hidden">
            <span className="text-white font-bold text-sm">{drawnNumbers.length}/90</span>
          </div>
+         <MuteButton />
          <button
            onClick={resetGame}
            className="bg-red-600 hover:bg-red-500 text-white p-2 md:px-6 md:py-3 rounded-xl md:rounded-2xl font-bold transition-all flex items-center gap-1 md:gap-2 shadow-xl active:scale-95"

@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import io from 'socket.io-client';
 import { generateCard } from '../utils/tombola';
-import { Home, Trophy, Star } from 'lucide-react';
+import { Home, Trophy, Star, MousePointerClick, Zap } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import GameAbandonedModal from '../components/GameAbandonedModal';
+import MuteButton from '../components/MuteButton';
 
 let socket;
 
@@ -16,10 +17,17 @@ export default function Cartelle() {
   const [claimedGoals, setClaimedGoals] = useState([]);
   const [announcement, setAnnouncement] = useState(null);
   const [showAbandonedModal, setShowAbandonedModal] = useState(false);
+  const [markingMode, setMarkingMode] = useState('auto'); // 'auto' or 'manual'
+  const [manualMarkedNumbers, setManualMarkedNumbers] = useState([]);
+  const [winningNumbers, setWinningNumbers] = useState([]);
+  const [winningCardId, setWinningCardId] = useState(null);
   
   const goalOrder = ['ambo', 'terna', 'quaterna', 'cinquina', 'tombola'];
 
   const playWinSound = (type) => {
+    const isMuted = localStorage.getItem('tombola_muted') === 'true';
+    if (isMuted) return;
+
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
     const ctx = new AudioContext();
@@ -42,9 +50,11 @@ export default function Cartelle() {
     osc.stop(now + 1);
   };
 
-  const triggerCelebration = (goal, winner) => {
+  const triggerCelebration = (goal, winner, winNums, cardId) => {
     playWinSound(goal);
     setAnnouncement({ goal, winner });
+    setWinningNumbers(winNums || []);
+    setWinningCardId(cardId);
     setTimeout(() => setAnnouncement(null), 5000);
     confetti({
       particleCount: 150,
@@ -56,8 +66,9 @@ export default function Cartelle() {
 
   const checkGoals = (card) => {
     let cardResults = [];
+    const markedNums = getEffectiveMarkedNumbers();
     card.nums.forEach(row => {
-      const matchedInRow = row.filter(n => n && drawnNumbers.includes(n)).length;
+      const matchedInRow = row.filter(n => n && markedNums.includes(n)).length;
       cardResults.push(matchedInRow);
     });
     const maxInARow = Math.max(...cardResults);
@@ -72,26 +83,75 @@ export default function Cartelle() {
     };
   };
 
+  const getEffectiveMarkedNumbers = useCallback(() => {
+    return markingMode === 'auto' ? drawnNumbers : manualMarkedNumbers;
+  }, [markingMode, drawnNumbers, manualMarkedNumbers]);
+
   const handleAutoClaim = useCallback(() => {
     const nextGoalIndex = claimedGoals.length;
     if (nextGoalIndex >= goalOrder.length) return;
 
     const currentTargetGoal = goalOrder[nextGoalIndex];
     let goalReachedByAnyCard = false;
+    let winNums = [];
+    let winCardId = null;
+
+    const markedNums = getEffectiveMarkedNumbers();
 
     cards.forEach(card => {
-      const results = checkGoals(card);
-      if (results[currentTargetGoal]) goalReachedByAnyCard = true;
+      let cardResults = [];
+      card.nums.forEach(row => {
+        const matchedInRow = row.filter(n => n && markedNums.includes(n));
+        cardResults.push(matchedInRow);
+      });
+
+      const maxInARow = Math.max(...cardResults.map(r => r.length));
+      const totalMatched = cardResults.flat().length;
+
+      const results = {
+        ambo: maxInARow >= 2,
+        terna: maxInARow >= 3,
+        quaterna: maxInARow >= 4,
+        cinquina: maxInARow >= 5,
+        tombola: totalMatched === 15
+      };
+
+      if (results[currentTargetGoal]) {
+        goalReachedByAnyCard = true;
+        winCardId = card.id;
+        if (currentTargetGoal === 'tombola') {
+          winNums = cardResults.flat();
+        } else {
+          const winningRow = cardResults.find(r => r.length >= (goalOrder.indexOf(currentTargetGoal) + 2));
+          winNums = winningRow || [];
+        }
+      }
     });
 
     if (goalReachedByAnyCard) {
-      socket.emit('claim-goal', { goal: currentTargetGoal, name });
+      socket.emit('claim-goal', { 
+        goal: currentTargetGoal, 
+        name, 
+        numbers: winNums,
+        cardId: winCardId,
+        isTombolone: false
+      });
     }
-  }, [cards, drawnNumbers, claimedGoals, name]);
+  }, [cards, getEffectiveMarkedNumbers, claimedGoals, name]);
 
   useEffect(() => {
     handleAutoClaim();
-  }, [drawnNumbers, handleAutoClaim]);
+  }, [drawnNumbers, manualMarkedNumbers, handleAutoClaim]);
+
+  const toggleNumberMark = (num) => {
+    if (markingMode === 'auto' || !num || !drawnNumbers.includes(num)) return;
+    
+    setManualMarkedNumbers(prev => 
+      prev.includes(num) 
+        ? prev.filter(n => n !== num) 
+        : [...prev, num]
+    );
+  };
 
   const [playerName, setPlayerName] = useState(name || '');
 
@@ -139,6 +199,13 @@ export default function Cartelle() {
     socket.on('init-state', (state) => {
       setDrawnNumbers(state.drawnNumbers);
       setClaimedGoals(state.claimedGoals.map(g => g.goal));
+      if (state.claimedGoals.length > 0) {
+        const lastGoal = state.claimedGoals[state.claimedGoals.length - 1];
+        if (lastGoal.winner === (name || localStorage.getItem('tombola_name'))) {
+          setWinningNumbers(lastGoal.numbers || []);
+          setWinningCardId(lastGoal.cardId);
+        }
+      }
       socket.emit('join-as-player', { name: currentPlayerName, numCards: currentPlayerNum });
     });
 
@@ -148,12 +215,19 @@ export default function Cartelle() {
 
     socket.on('goal-claimed', (winData) => {
       setClaimedGoals(prev => [...prev, winData.goal]);
-      triggerCelebration(winData.goal, winData.winner);
+      const myName = name || localStorage.getItem('tombola_name');
+      if (winData.winner === myName) {
+        triggerCelebration(winData.goal, winData.winner, winData.numbers, winData.cardId);
+      } else {
+        triggerCelebration(winData.goal, winData.winner, [], null);
+      }
     });
 
     socket.on('game-reset', () => {
       setDrawnNumbers([]);
       setClaimedGoals([]);
+      setWinningNumbers([]);
+      setWinningCardId(null);
       localStorage.removeItem('tombola_cards');
       localStorage.removeItem('tombola_name');
       localStorage.removeItem('tombola_role');
@@ -195,9 +269,28 @@ export default function Cartelle() {
             <h1 className="text-2xl md:text-4xl font-black text-yellow-400 italic tracking-tighter uppercase">Gara di {playerName}</h1>
           </div>
         </div>
-        <button onClick={() => router.push('/')} className="bg-white bg-opacity-10 hover:bg-opacity-20 text-white p-3 rounded-2xl transition-all active:scale-95">
-          <Home className="w-6 h-6" />
-        </button>
+        <div className="flex gap-2 items-center">
+          <button
+            onClick={() => {
+              const newMode = markingMode === 'auto' ? 'manual' : 'auto';
+              setMarkingMode(newMode);
+              if (newMode === 'auto') {
+                setManualMarkedNumbers([]);
+              } else {
+                setManualMarkedNumbers([...drawnNumbers]);
+              }
+            }}
+            className="bg-white bg-opacity-10 hover:bg-opacity-20 text-white p-2 md:px-4 md:py-2 rounded-xl md:rounded-2xl font-bold transition-all flex items-center gap-1 md:gap-2 shadow-xl active:scale-95"
+            title={markingMode === 'auto' ? 'Passa a Manuale' : 'Passa ad Automatico'}
+          >
+            {markingMode === 'auto' ? <Zap className="w-4 h-4 md:w-5 md:h-5 text-yellow-400" /> : <MousePointerClick className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />}
+            <span className="hidden md:block">{markingMode === 'auto' ? 'Auto' : 'Manual'}</span>
+          </button>
+          <MuteButton />
+          <button onClick={() => router.push('/')} className="bg-white bg-opacity-10 hover:bg-opacity-20 text-white p-3 rounded-2xl transition-all active:scale-95">
+            <Home className="w-6 h-6" />
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-8 w-full max-w-4xl mb-20 z-20">
@@ -217,17 +310,30 @@ export default function Cartelle() {
               <div className="grid grid-rows-3 gap-2 md:gap-4">
                 {card.nums.map((row, rIdx) => (
                   <div key={rIdx} className="grid grid-cols-9 gap-1 md:gap-2">
-                    {row.map((num, cIdx) => (
-                      <div key={cIdx} className={`aspect-square flex items-center justify-center border-b-2 md:border-b-4 border-r-2 text-base md:text-xl font-black rounded-lg md:rounded-2xl transition-all duration-300 ${
-                        num === null
-                          ? 'bg-gray-50 border-gray-200'
-                          : drawnNumbers.includes(num)
-                            ? 'bg-red-600 text-white border-red-800 scale-105 shadow-xl rotate-2 -translate-y-1'
-                            : 'bg-white text-gray-800 border-gray-200 hover:border-red-300 hover:bg-red-50'
-                      }`}>
-                        {num}
-                      </div>
-                    ))}
+                    {row.map((num, cIdx) => {
+                      const isMarked = getEffectiveMarkedNumbers().includes(num);
+                      const isDrawnButNotMarked = markingMode === 'manual' && drawnNumbers.includes(num) && !isMarked;
+                      
+                      return (
+                        <div 
+                          key={cIdx} 
+                          onClick={() => toggleNumberMark(num)}
+                          className={`aspect-square flex items-center justify-center border-b-2 md:border-b-4 border-r-2 text-base md:text-xl font-black rounded-lg md:rounded-2xl transition-all duration-300 ${
+                            num === null
+                              ? 'bg-gray-50 border-gray-200'
+                              : isMarked
+                                ? (winningCardId === card.id && winningNumbers.includes(num))
+                                  ? 'bg-green-600 text-white border-green-800 scale-110 shadow-xl rotate-3 -translate-y-1'
+                                  : 'bg-red-600 text-white border-red-800 scale-105 shadow-xl rotate-2 -translate-y-1'
+                                : isDrawnButNotMarked
+                                  ? 'bg-yellow-100 text-gray-800 border-yellow-300 cursor-pointer animate-pulse'
+                                  : 'bg-white text-gray-800 border-gray-200 hover:border-red-300 hover:bg-red-50'
+                          } ${markingMode === 'manual' && num !== null && drawnNumbers.includes(num) ? 'cursor-pointer' : ''}`}
+                        >
+                          {num}
+                        </div>
+                      );
+                    })}
                   </div>
                 ))}
               </div>
