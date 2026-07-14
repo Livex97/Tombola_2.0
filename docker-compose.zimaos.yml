@@ -1,0 +1,54 @@
+# docker-compose.zimaos.yml
+# Compose ottimizzato per l'installazione su ZimaOS / CasaOS.
+# L'immagine viene scaricata già pronta da GHCR (buildata dalla GitHub Action
+# in modalità multi-arch: amd64 + arm64, quindi funziona anche su ZimaBoard).
+#
+# Installazione su ZimaOS:
+#   1. App Store -> Custom Install (Installazione personalizzata)
+#   2. Incolla il contenuto di questo file (o carica il file)
+#   3. Installa
+#   Accedi poi da browser a http://<IP-ZimaOS>:3000
+#
+# NOTA: il package su GHCR deve essere pubblico (GitHub -> Packages ->
+#       tombola_2.0 -> Settings -> Change visibility -> Public) oppure
+#       aggiungi le credenziali GHCR in ZimaOS (Settings -> Registry).
+
+services:
+  tombola:
+    image: ghcr.io/livex97/tombola_2.0:latest
+    container_name: tombola
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOST=0.0.0.0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+# Metadati per la UI di ZimaOS/CasaOS (icona, nome, descrizione, porta)
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+    - arm
+  main: tombola
+  description:
+    en_us: "Web app italiana per giocare a tombola in tempo reale (tabellone + cartelle)"
+  tagline:
+    en_us: "Tombola 2.0"
+  developer: "Livex97"
+  author: "Livex97"
+  icon: "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f345.svg"
+  thumbnail: ""
+  repo: "https://github.com/Livex97/Tombola_2.0"
+  scheme: "http"
+  ports:
+    - container: "3000"
+      host: "3000"
+  path: "/"
