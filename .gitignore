@@ -1,1 +1,9 @@
 node_modules
+.next
+out
+*.deb
+.DS_Store
+.env
+.env.*
+npm-debug.log
+*.log
