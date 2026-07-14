@@ -18,10 +18,10 @@ services:
     image: ghcr.io/livex97/tombola_2.0:latest
     container_name: tombola
     ports:
-      - "3000:3000"
+      - "2512:2512"
     environment:
       - NODE_ENV=production
-      - PORT=3000
+      - PORT=2512
       - HOST=0.0.0.0
     restart: unless-stopped
     healthcheck:
@@ -49,6 +49,6 @@ x-casaos:
   repo: "https://github.com/Livex97/Tombola_2.0"
   scheme: "http"
   ports:
-    - container: "3000"
-      host: "3000"
+    - container: "2512"
+      host: "2512"
   path: "/"

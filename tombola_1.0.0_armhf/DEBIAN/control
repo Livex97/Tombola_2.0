@@ -1,8 +1,0 @@
-Package: tombola
-Version: 1.0.0
-Section: web
-Priority: optional
-Architecture: armhf
-Depends: nodejs (>= 18)
-Maintainer: Alessio
-Description: Tombola web app per Raspberry Pi Zero W

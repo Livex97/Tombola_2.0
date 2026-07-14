@@ -7,3 +7,19 @@ out
 .env.*
 npm-debug.log
 *.log
+
+# --- Elementi non necessari alla build dell'immagine Docker ---
+# Progetto/deploy separato per Raspberry Pi (server standalone)
+tombola-rpi/
+# Pacchetto .deb e cartella di build per RPi
+tombola_1.0.0_armhf/
+# Output di export statico (non usato dal custom server)
+out/
+# Documentazione/deploy RPi non necessaria al container
+Guida_Tombola_RpiZeroW_DEB.md
+Conversione embedded-style.md
+setup_tombola_service.sh
+# File vari/tooling non legati al container
+*.pdf
+.zencoder/
+.zenflow/

@@ -4,10 +4,10 @@ services:
     image: tombola_2.0:latest
     container_name: tombola
     ports:
-      - "3000:3000"
+      - "2512:2512"
     environment:
       - NODE_ENV=production
-      - PORT=3000
+      - PORT=2512
       - HOST=0.0.0.0
     restart: unless-stopped
     healthcheck:

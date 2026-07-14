@@ -4,6 +4,7 @@ node_modules
 .vscode
 Dockerfile
 docker-compose.yml
+docker-compose.zimaos.yml
 README.md
 
 *.log
@@ -16,3 +17,14 @@ out
 
 .env
 .env.*
+
+# --- Elementi non necessari alla build dell'immagine Docker ---
+tombola-rpi/
+tombola_1.0.0_armhf/
+*.deb
+*.pdf
+Guida_Tombola_RpiZeroW_DEB.md
+Conversione embedded-style.md
+setup_tombola_service.sh
+.zencoder/
+.zenflow/

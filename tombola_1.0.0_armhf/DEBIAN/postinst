@@ -1,8 +1,0 @@
-#!/bin/bash
-set -e
-
-cd /usr/local/tombola
-/usr/local/lib/nodejs/node-v21.7.3-linux-armv6l/bin/npm install --omit=dev --no-audit --no-fund
-echo "Creazione e avvio servizio Tombola..."
-chmod +x setup_tombola_service.sh
-./setup_tombola_service.sh

@@ -46,11 +46,11 @@ RUN npm prune --omit=dev
 USER app
 
 # Esposta la porta su cui l'applicazione ascolta (definita in server.js)
-EXPOSE 3000
+EXPOSE 2512
 
 # Healthcheck per verificare che l'applicazione sia responsive
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s \
-  CMD wget --spider http://localhost:${PORT:-3000} || exit 1
+  CMD wget --spider http://localhost:${PORT:-2512} || exit 1
 
 # Avvia il server in produzione
 CMD ["npm", "start"]
