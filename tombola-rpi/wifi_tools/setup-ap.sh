@@ -14,6 +14,7 @@ apt-get install -y hostapd dnsmasq avahi-daemon
 # 2. Ferma i servizi durante la configurazione
 systemctl stop hostapd
 systemctl stop dnsmasq
+#systemctl stop wpa_supplicant
 
 # 3. Configura IP statico per wlan0
 echo "Configurazione IP statico (192.168.4.1)..."
@@ -39,9 +40,10 @@ interface=wlan0
 driver=nl80211
 ssid=Tombola-WiFi
 hw_mode=g
-channel=7
+channel=6
+country_code=IT
+ieee80211n=1
 wmm_enabled=0
-macaddr_acl=0
 auth_algs=1
 ignore_broadcast_ssid=0
 EOF'
